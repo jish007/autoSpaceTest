@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:autospaxe/screens/maps/payment_screen.dart';
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'dart:convert';
 
 import 'package:provider/provider.dart';
@@ -41,6 +41,8 @@ class BookingData {
   final String parkingName;
   final String parkingAddress;
   final double parkingRating;
+  final int parkingFare;
+  final DateTime? bookingDate;
   final List<VehicleOption> vehicleOptions;
 
   BookingData({
@@ -52,6 +54,8 @@ class BookingData {
     required this.parkingAddress,
     required this.parkingRating,
     required this.vehicleOptions,
+    required this.parkingFare,
+    required this.bookingDate,
   });
 
   factory BookingData.fromJson(Map<String, dynamic> json) {
@@ -63,6 +67,8 @@ class BookingData {
       parkingName: json['parkingName'] ?? '',
       parkingAddress: json['parkingAddress'] ?? '',
       parkingRating: json['parkingRating'] ?? 0.0,
+      parkingFare: json['parkingFare'] ?? 0,
+      bookingDate: json['bookingDate'] ?? '',
       vehicleOptions: (json['vehicleOptions'] as List?)
           ?.map((v) => VehicleOption.fromJson(v))
           .toList() ?? [],
@@ -255,7 +261,9 @@ class _BookingSlidingPanelState extends State<BookingSlidingPanel> {
 
                   // Confirm booking button
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      showDialog(context: context, builder: (context) => PaymentMethodsScreen(fare: widget.bookingData.parkingFare, bookingData: widget.bookingData, selectedVehicle: widget.selectedVehicle));
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple.shade600,
                       foregroundColor: Colors.white,

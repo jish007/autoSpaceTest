@@ -6,8 +6,12 @@ import 'package:autospaxe/screens/login/signup_page.dart';
 import 'package:autospaxe/screens/login/splash_screen.dart';
 import 'package:autospaxe/screens/main_screen.dart';
 import 'package:autospaxe/screens/maps/date_time_picker_page.dart';
+import 'package:autospaxe/screens/maps/payment_screen.dart';
+import 'package:autospaxe/screens/onboardingscreen/intro_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+
 
 void main() {
   runApp(
@@ -33,7 +37,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: LoginPage()
+      home: SplashScreen()
     );
   }
 }

@@ -82,7 +82,9 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
       parkingName: parkingProvider.parkingName,
       parkingAddress: 'Current address',
       parkingRating: 4.7,
+      parkingFare: widget.fare,
       vehicleOptions: [], // Empty initially, will be populated after API call
+      bookingDate: widget.endDate,
     );
 
     // Add a default vehicle if needed for initial state
@@ -151,7 +153,9 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
         parkingName: parkingProvider.parkingName,
         parkingAddress: 'Current address',
         parkingRating: 4.7,
+        parkingFare: widget.fare,
         vehicleOptions: vehicleOptions,
+        bookingDate: widget.endDate,
       );
 
       // Update selected vehicle

@@ -90,7 +90,7 @@ class _DateTimePickerPageState extends State<DateTimePickerPage> with SingleTick
   int calculateFare(){
     String ratePerHour = Provider.of<ParkingProvider>(context, listen: false).ratePerHour;
     int rate = double.parse(ratePerHour).toInt();
-    return selectedHours * rate;
+    return selectedHours * rate + 50;
   }
 
   bool _areAllFieldsEntered() => selectedDate != null;

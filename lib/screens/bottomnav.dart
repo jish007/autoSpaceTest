@@ -22,7 +22,7 @@ class _BottomnavState extends State<Bottomnav> {
     super.initState();
     _screens = [
       HomeScreen(userMail: widget.userMail),
-      //SvgDisplayPage(),
+      CountdownPage(),
       //Bookmarker(),
       //Profile(),
     ];

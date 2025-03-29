@@ -1,19 +1,7 @@
+import 'package:autospaxe/screens/onboardingscreen/intro_page.dart';
 import 'package:flutter/material.dart';
 
 import '../login/onboarding_screen.dart';
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        fontFamily: 'Viga',
-      ),
-      home: ImageSlider(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
 
 class ImageSlider extends StatefulWidget {
   @override
@@ -34,30 +22,37 @@ class _ImageSliderState extends State<ImageSlider> {
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> images = [
       {
-        'path': 'https://res.cloudinary.com/dwdatqojd/image/upload/v1738830090/omx1_yqlyjd.png',
-        'heading1': 'Your first car without a driver\'s license',
-        'description': 'Avocados are a great source of healthy fats, fiber, and vitamins.',
+        'path':
+            'https://res.cloudinary.com/dwdatqojd/image/upload/v1738830090/omx1_yqlyjd.png',
+        'heading1': 'Welcome to AutoSpaXe',
+        'description':
+            'Simplify your parking experience with hassle-free booking, real-time slot updates, and secure access - all from your fingertips ',
         'dotColor': Color.fromARGB(255, 0, 0, 0),
         'backgroundColor': Color.fromARGB(255, 56, 55, 55),
       },
       {
-        'path': 'https://res.cloudinary.com/dwdatqojd/image/upload/v1738830713/Img_car2_n3apej.png',
-        'heading1': 'Always there: more than 1000 cars in Tbilisi',
-        'description': 'Oranges are rich in Vitamin C and antioxidants, great for immune health.',
+        'path':
+            'https://res.cloudinary.com/dwdatqojd/image/upload/v1738830713/Img_car2_n3apej.png',
+        'heading1': 'Easy Slot Booking',
+        'description':
+            'Quickly find and reserve parking spaces near you with just a few taps. No more last-minute stress',
         'dotColor': Color.fromARGB(255, 255, 0, 0),
         'backgroundColor': Color.fromARGB(255, 212, 81, 29),
       },
       {
-        'path': 'https://res.cloudinary.com/dwdatqojd/image/upload/v1738830939/Img_car3_rkbnay.png',
-        'heading1': 'Do not pay for parking, maintenance, and gasoline',
-        'description': 'Bananas are packed with potassium, great for heart health.',
+        'path':
+            'https://res.cloudinary.com/dwdatqojd/image/upload/v1738830939/Img_car3_rkbnay.png',
+        'heading1': 'Real-Time Slot Monitoring',
+        'description':
+            'Stay informed with live updates on slot availability, ensuring you know exactly where to park.',
         'dotColor': Color.fromARGB(255, 250, 89, 36),
         'backgroundColor': Color.fromARGB(255, 239, 133, 49),
       },
       {
-        'path': 'https://res.cloudinary.com/dwdatqojd/image/upload/v1738831016/Img_car4_det2ck.png',
-        'heading1': '29 car models: from Skoda Octavia to Porsche 911',
-        'description': 'Mangos are delicious and rich in Vitamin A and Vitamin C.',
+        'path':
+            'https://res.cloudinary.com/dwdatqojd/image/upload/v1738831016/Img_car4_det2ck.png',
+        'heading1': 'Get Started Today!',
+        'description': 'Sign up now and experience the smartest way to park.',
         'dotColor': Color.fromARGB(255, 34, 194, 253),
         'backgroundColor': Color.fromARGB(255, 98, 180, 250),
       },
@@ -97,7 +92,8 @@ class _ImageSliderState extends State<ImageSlider> {
                     SizedBox(height: 20),
                     Container(
                       width: double.infinity,
-                      height: MediaQuery.of(context).size.height * 0.57, // Reduced height
+                      height: MediaQuery.of(context).size.height *
+                          0.57, // Reduced height
                       decoration: BoxDecoration(
                         image: DecorationImage(
                           image: NetworkImage(images[index]['path']!),
@@ -139,7 +135,9 @@ class _ImageSliderState extends State<ImageSlider> {
                   height: _currentPage == index ? 12 : 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _currentPage == index ? images[index]['dotColor'] : Colors.grey,
+                    color: _currentPage == index
+                        ? images[index]['dotColor']
+                        : Colors.grey,
                   ),
                 ),
               ),
@@ -165,19 +163,21 @@ class _ImageSliderState extends State<ImageSlider> {
                     ),
                   ),
                 ),
-                 ElevatedButton(
-  onPressed: () {
-    if (_currentPage < images.length - 1) {
-      _controller.nextPage(
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.ease,
-      );
-    } else {
-      // Navigate to another screen or handle last page action
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) =>OnboardingScreen()), // Replace with your screen
-      );
+                ElevatedButton(
+                  onPressed: () {
+                    if (_currentPage < images.length - 1) {
+                      _controller.nextPage(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.ease,
+                      );
+                    } else {
+                      // Navigate to another screen or handle last page action
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                IntroPage()), // Replace with your screen
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -201,4 +201,3 @@ class _ImageSliderState extends State<ImageSlider> {
     );
   }
 }
-

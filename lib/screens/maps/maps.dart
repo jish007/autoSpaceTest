@@ -25,7 +25,7 @@ class _SvgUpdaterState extends State<SvgUpdater> {
 
   int selectedImageIndex = -1;
   final int numRows = 26;
-  final double labelSpacing = 2.0;
+  final double labelSpacing = 4.0;
 
   List<Map<String, dynamic>> mockSlots = [];
   Map<String, double> slotProgress = {};
@@ -711,10 +711,10 @@ class _SvgUpdaterState extends State<SvgUpdater> {
                             width: 800,
                             height: 1500,
                             child: Stack(children: [
-                              for (int i = 0; i < numRows; i++)
+                              for (int i = 0; i < mockSlots.length; i++)
                                 Positioned(
                                   left: 20,
-                                  top: (80.0 + labelSpacing) * i,
+                                  top: i == 0 ? (80.0 + labelSpacing) * i : (160.0 + labelSpacing) * i,
                                   child: Text(
                                     String.fromCharCode(65 + i),
                                     style: TextStyle(
