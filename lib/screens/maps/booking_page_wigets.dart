@@ -13,12 +13,16 @@ class VehicleOption {
   final String brand;
   final String model;
   final String type;
+  final String vehicleNum;
+  final String vehicleType;
   final bool isDefault;
 
   const VehicleOption({
     required this.brand,
     required this.model,
     required this.type,
+    required this.vehicleNum,
+    required this.vehicleType,
     this.isDefault = false,
   });
 
@@ -27,6 +31,8 @@ class VehicleOption {
       brand: json['brand'] ?? '',
       model: json['model'] ?? '',
       type: json['type'] ?? '',
+      vehicleNum: json['vehicleNum'] ?? '',
+      vehicleType: json['vehicleType'] ?? '',
       isDefault: json['isDefault'] ?? false,
     );
   }
@@ -37,6 +43,7 @@ class BookingData {
   final String fromLocation;
   final String toLocation;
   final String parkingSlot;
+  final String parkingSlotId;
   final String bookingTime;
   final String parkingName;
   final String parkingAddress;
@@ -49,6 +56,7 @@ class BookingData {
     required this.fromLocation,
     required this.toLocation,
     required this.parkingSlot,
+    required this.parkingSlotId,
     required this.bookingTime,
     required this.parkingName,
     required this.parkingAddress,
@@ -63,6 +71,7 @@ class BookingData {
       fromLocation: json['fromLocation'] ?? '',
       toLocation: json['toLocation'] ?? '',
       parkingSlot: json['parkingSlot'] ?? '',
+      parkingSlotId: json['parkingSlotId'] ?? '',
       bookingTime: json['bookingTime'] ?? '',
       parkingName: json['parkingName'] ?? '',
       parkingAddress: json['parkingAddress'] ?? '',

@@ -1,4 +1,4 @@
-import 'package:autospaxe/screens/maps/booking_page.dart';
+import 'package:autospaxe/screens/maps/payment_screen_for_add_on.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ruler_picker/flutter_ruler_picker.dart';
 import 'package:intl/intl.dart';
@@ -7,17 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/ParkingProvider.dart';
 import 'circular_time_picker.dart';
 
-class DateTimePickerPage extends StatefulWidget {
-  final String slotId;
+class DateTimePickerForAddOn extends StatefulWidget {
   final String slotType;
-  final String slotNumber;
-  const DateTimePickerPage({super.key, required this.slotId, required this.slotType, required this.slotNumber});
+  final String vehicleNum;
+  const DateTimePickerForAddOn({super.key,required this.slotType, required this.vehicleNum});
 
   @override
-  _DateTimePickerPageState createState() => _DateTimePickerPageState();
+  _DateTimePickerForAddOnState createState() => _DateTimePickerForAddOnState();
 }
 
-class _DateTimePickerPageState extends State<DateTimePickerPage> with SingleTickerProviderStateMixin {
+class _DateTimePickerForAddOnState extends State<DateTimePickerForAddOn> with SingleTickerProviderStateMixin {
   // Controllers
   late RulerPickerController _rulerPickerController;
   final ScrollController _scrollController = ScrollController();
@@ -32,6 +31,8 @@ class _DateTimePickerPageState extends State<DateTimePickerPage> with SingleTick
   bool isFourWheeler = true;
   bool _isInteracting = false;
   bool _showButton = false;
+
+  String ratePerHour = '0';
 
 
   // Time ranges for ruler picker
@@ -70,6 +71,8 @@ class _DateTimePickerPageState extends State<DateTimePickerPage> with SingleTick
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _animationController, curve: Curves.easeIn)
     );
+
+    fetchAndSetRate();
   }
 
   @override
@@ -98,8 +101,19 @@ class _DateTimePickerPageState extends State<DateTimePickerPage> with SingleTick
     return DateFormat('hh:mm a').format(endTime);
   }
 
+  Future<void> fetchAndSetRate() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? rate = prefs.getString('ratePerHour');
+
+    if (rate != null) {
+      setState(() {
+        ratePerHour = rate.toString(); // Convert to int
+      });
+    }
+  }
+
   int calculateFare(){
-    String ratePerHour = Provider.of<ParkingProvider>(context, listen: false).ratePerHour;
+    //String ratePerHour = Provider.of<ParkingProvider>(context, listen: false).ratePerHour;
     int rate = double.parse(ratePerHour).toInt();
     return selectedHours * rate + 50;
   }
@@ -253,17 +267,36 @@ class _DateTimePickerPageState extends State<DateTimePickerPage> with SingleTick
   }
 
   void _handleSubmit() {
+    String startTime = formatTime(currentValue);
+    String endTime = calculateEndTime();
 
+    DateFormat format = DateFormat("hh:mm a");
+    DateTime startDateTime = format.parse(startTime);
+    DateTime endDateTime = format.parse(endTime);
+
+    // Handle cases where endTime is past midnight
+    if (endDateTime.isBefore(startDateTime)) {
+      endDateTime = endDateTime.add(Duration(days: 1));
+    }
+
+    // Calculate duration
+    Duration duration = endDateTime.difference(startDateTime);
+
+    // Format duration as hh:mm
+    String formattedDuration = "${duration.inHours.toString().padLeft(2, '0')}h${(duration.inMinutes % 60).toString().padLeft(2, '0')}m";
+
+    print("Duration: $formattedDuration");
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BookingPage(slotId: widget.slotId, slotType: widget.slotType, slotNumber: widget.slotNumber, fare: calculateFare(), endDate: selectedDate, endTime: calculateEndTime(), startTime: formatTime(currentValue)),
+        builder: (context) => /*BookingPage(slotId: widget.slotId, slotType: widget.slotType, slotNumber: widget.slotNumber, fare: calculateFare(), endDate: selectedDate, endTime: calculateEndTime(), startTime: formatTime(currentValue))*/
+        PaymentMethodsScreenForAddOn(fare: calculateFare(),duration: formattedDuration,vehicleNum: widget.vehicleNum),
       ),
     );
-    print(formatTime(currentValue));
-    print(calculateEndTime());
-    print(selectedDate);
-    print(calculateFare());
+    print(formatTime(currentValue)); // start time 11:50 PM
+    print(calculateEndTime()); // end time 12:50 AM
+    print(selectedDate); // picked date
+    print(calculateFare()); // fare
   }
 
 

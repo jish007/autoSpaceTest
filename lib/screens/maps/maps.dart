@@ -611,14 +611,7 @@ class _SvgUpdaterState extends State<SvgUpdater> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            /*Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DateTimeRangePickerScreen(
-                  parkingId: '',
-                ),
-              ),
-            );*/
+            Navigator.pop(context);
           },
         ),
         actions: [

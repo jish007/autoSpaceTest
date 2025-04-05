@@ -4,16 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../providers/ParkingProvider.dart'; // Added QR code package
+import '../../providers/ParkingProvider.dart';
+import '../../providers/user_provider.dart';
+import '../../services/api_service.dart';
+import '../main_screen.dart'; // Added QR code package
 
 class InvoicePage extends StatefulWidget {
   final String fromLocation;
   final String toLocation;
   final String parkingSlot;
+  final String parkingSlotId;
   final String bookingTime;
   final String vehicleBrand;
   final String vehicleModel;
   final String vehicleType;
+  final String vehicleNum;
   final String parkingName;
   final String parkingAddress;
   final double parkingRating;
@@ -25,28 +30,31 @@ class InvoicePage extends StatefulWidget {
 
   const InvoicePage({
     super.key,
-    required this.fromLocation ,
-    required this.toLocation ,
-    required this.parkingSlot ,
-    required this.bookingTime ,
-    required this.vehicleBrand ,
-    required this.vehicleModel ,
-    required this.vehicleType ,
-    required this.parkingName ,
-    required this.parkingAddress ,
+    required this.fromLocation,
+    required this.toLocation,
+    required this.parkingSlot,
+    required this.parkingSlotId,
+    required this.bookingTime,
+    required this.vehicleBrand,
+    required this.vehicleModel,
+    required this.vehicleType,
+    required this.vehicleNum,
+    required this.parkingName,
+    required this.parkingAddress,
     required this.parkingRating,
-    required this.invoiceNumber ,
-    required this.bookingDate ,
-    required this.amount ,
-    required this.paymentMethod ,
-    required this.transactionId ,
+    required this.invoiceNumber,
+    required this.bookingDate,
+    required this.amount,
+    required this.paymentMethod,
+    required this.transactionId,
   });
 
   @override
   State<InvoicePage> createState() => _InvoicePageState();
 }
 
-class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStateMixin {
+class _InvoicePageState extends State<InvoicePage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -81,7 +89,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text("Invoice",
-            style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
+            style:
+                TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
@@ -213,7 +222,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
                         ),
                       );
                     },
-                    embeddedImage: const AssetImage('assets/logo.png'), // Optional: Add your logo in the center
+                    embeddedImage: const AssetImage('assets/logo.png'),
+                    // Optional: Add your logo in the center
                     embeddedImageStyle: const QrEmbeddedImageStyle(
                       size: Size(30, 30),
                     ),
@@ -277,7 +287,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
   }
 
   Widget _buildParkingDetailsCard() {
-    final parkingProvider = Provider.of<ParkingProvider>(context, listen: false);
+    final parkingProvider =
+        Provider.of<ParkingProvider>(context, listen: false);
     dynamic image = parkingProvider.parkingImageUrl;
     return Container(
       width: double.infinity,
@@ -323,7 +334,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.memory(
-                    convertToImage(image), // Replace with actual image from data if available
+                    convertToImage(image),
+                    // Replace with actual image from data if available
                     width: 70,
                     height: 70,
                     fit: BoxFit.cover,
@@ -331,7 +343,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
                       width: 70,
                       height: 70,
                       color: Colors.grey.shade200,
-                      child: Icon(Icons.image_not_supported, color: Colors.grey.shade500),
+                      child: Icon(Icons.image_not_supported,
+                          color: Colors.grey.shade500),
                     ),
                   ),
                 ),
@@ -428,9 +441,7 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader("Vehicle Information", Icons.directions_car),
-
           const SizedBox(height: 16),
-
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -554,22 +565,18 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader("Payment Details", Icons.payment),
-
           const SizedBox(height: 16),
-
-          _buildPaymentRow("Parking Fee", "Rs: ${(widget.amount - 50.50).toStringAsFixed(2)}"),
+          _buildPaymentRow("Parking Fee",
+              "Rs: ${(widget.amount - 50.50).toStringAsFixed(2)}"),
           const SizedBox(height: 10),
           _buildPaymentRow("Booking Fee", "Rs: 50"),
           const SizedBox(height: 12),
-
           _buildDottedDivider(),
-
           const SizedBox(height: 12),
-          _buildPaymentRow("Total Amount", "Rs: ${widget.amount.toStringAsFixed(2)}",
+          _buildPaymentRow(
+              "Total Amount", "Rs: ${widget.amount.toStringAsFixed(2)}",
               isTotal: true),
-
           const SizedBox(height: 20),
-
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
@@ -614,7 +621,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(16),
@@ -701,8 +709,31 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
         ),
         const SizedBox(height: 8),
         InkWell(
-          onTap: (){
+          onTap: () async {
+            print(widget.fromLocation);
+            print(widget.parkingSlotId);
+            print(widget.parkingSlot);
+            print(widget.bookingDate);
+            print(widget.toLocation);
+            print(widget.parkingAddress);
+            print(widget.parkingName);
+            print(widget.bookingTime);
+            print(widget.vehicleModel);
+            print(widget.vehicleType);
+            print(widget.amount);
+            print(widget.invoiceNumber);
+            print(widget.parkingRating);
+            print(widget.paymentMethod);
+            print(widget.transactionId);
+            print(widget.vehicleBrand);
+            print(widget.vehicleNum);
+            final userProvider = Provider.of<UserProvider>(context, listen: false);
+            String userEmail = userProvider.userEmail.toString();
 
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => MainScreen(userMail: userEmail)),
+            );
           },
           child: Text(
             "Go back to home",
@@ -771,7 +802,8 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
                     )
                   ],
                 ),
-                child: Icon(Icons.directions_car, color: Colors.deepPurple.shade400, size: 16),
+                child: Icon(Icons.directions_car,
+                    color: Colors.deepPurple.shade400, size: 16),
               ),
             ],
           ),
@@ -792,7 +824,9 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
       }
       return code.toUpperCase();
     }
-    return location.length >= 3 ? location.substring(0, 3).toUpperCase() : location.toUpperCase();
+    return location.length >= 3
+        ? location.substring(0, 3).toUpperCase()
+        : location.toUpperCase();
   }
 
   Widget _buildLocationBadge(String location, bool isStart) {
@@ -807,8 +841,12 @@ class _InvoicePageState extends State<InvoicePage> with SingleTickerProviderStat
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                isStart ? Colors.deepPurple.shade300 : Colors.deepPurple.shade400,
-                isStart ? Colors.deepPurple.shade400 : Colors.deepPurple.shade600,
+                isStart
+                    ? Colors.deepPurple.shade300
+                    : Colors.deepPurple.shade400,
+                isStart
+                    ? Colors.deepPurple.shade400
+                    : Colors.deepPurple.shade600,
               ],
             ),
             boxShadow: [
@@ -937,6 +975,6 @@ class DottedLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(DottedLinePainter oldDelegate) =>
       oldDelegate.color != color ||
-          oldDelegate.dashWidth != dashWidth ||
-          oldDelegate.dashSpace != dashSpace;
+      oldDelegate.dashWidth != dashWidth ||
+      oldDelegate.dashSpace != dashSpace;
 }

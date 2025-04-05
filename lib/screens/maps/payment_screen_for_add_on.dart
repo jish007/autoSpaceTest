@@ -1,24 +1,30 @@
 import 'package:autospaxe/screens/maps/booking_page_wigets.dart';
+import 'package:autospaxe/screens/maps/success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
 import 'invoice_page.dart';
 
-
-
-
-class PaymentMethodsScreen extends StatefulWidget {
+class PaymentMethodsScreenForAddOn extends StatefulWidget {
   final int fare;
-  final BookingData bookingData;
-  final VehicleOption selectedVehicle;
-  const PaymentMethodsScreen({Key? key, required this.fare, required this.bookingData, required this.selectedVehicle}) : super(key: key);
+  final String duration;
+  final String vehicleNum;
+
+  const PaymentMethodsScreenForAddOn(
+      {Key? key,
+      required this.fare,
+      required this.duration,
+      required this.vehicleNum})
+      : super(key: key);
 
   @override
-  State<PaymentMethodsScreen> createState() => _PaymentMethodsScreenState();
+  State<PaymentMethodsScreenForAddOn> createState() =>
+      _PaymentMethodsScreenForAddOnState();
 }
 
-class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
+class _PaymentMethodsScreenForAddOnState
+    extends State<PaymentMethodsScreenForAddOn> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,7 +90,12 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   void _navigateToAddCard(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => AddCardScreen(fare: widget.fare,vehicleOption: widget.selectedVehicle,bookingData: widget.bookingData,)),
+      MaterialPageRoute(
+          builder: (context) => AddCardScreen(
+                fare: widget.fare,
+                duration: widget.duration,
+                vehicleNum: widget.vehicleNum,
+              )),
     );
   }
 }
@@ -96,13 +107,13 @@ class PaymentMethodItem extends StatelessWidget {
   final VoidCallback onTap;
   final int fare;
 
-  const PaymentMethodItem({
-    Key? key,
-    required this.logo,
-    required this.name,
-    required this.onTap,
-    required this.fare
-  }) : super(key: key);
+  const PaymentMethodItem(
+      {Key? key,
+      required this.logo,
+      required this.name,
+      required this.onTap,
+      required this.fare})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -194,16 +205,61 @@ class AddPaymentButton extends StatelessWidget {
 // 5. AddCardScreen - Screen to add a new card
 class AddCardScreen extends StatefulWidget {
   final int fare;
-  final BookingData bookingData;
-  final VehicleOption vehicleOption;
-  const AddCardScreen({Key? key, required this.fare, required this.vehicleOption,required this.bookingData}) : super(key: key);
+  final String duration;
+  final String vehicleNum;
+
+  const AddCardScreen(
+      {Key? key,
+      required this.fare,
+      required this.duration,
+      required this.vehicleNum})
+      : super(key: key);
 
   @override
   State<AddCardScreen> createState() => _AddCardScreenState();
 }
 
 class _AddCardScreenState extends State<AddCardScreen> {
-  String _cardholderName = '';  // To store the name
+  String _cardholderName = ''; // To store the name
+
+  final ApiService apiService = ApiService();
+
+  Future<void> bookSlot(BuildContext context) async {
+    try {
+      final response = await apiService.addOnSlot(widget.vehicleNum.toString(),
+          widget.duration.toString(), widget.fare.toString());
+
+      if (response.statusCode == 200) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PaymentSuccessScreen()),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Successfully Booked")),
+        );
+      } else {
+        String errorMessage = "Failed";
+        if (response.statusCode == 400) {
+          errorMessage = "Bad request. Please check your input.";
+        } else {
+          errorMessage = "An error occurred. Please try again.";
+        }
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
+      }
+    } catch (e) {
+      print("Error: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("An error occurred. Please try again.")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,32 +277,21 @@ class _AddCardScreenState extends State<AddCardScreen> {
               children: [
                 const CardPreview(),
                 const SizedBox(height: 30),
-                const Text('Enter your payment details', style: AppTheme.bodyStyle),
+                const Text('Enter your payment details',
+                    style: AppTheme.bodyStyle),
                 const SizedBox(height: 8),
-                const Text('By continuing you agree to our Terms', style: AppTheme.captionStyle),
+                const Text('By continuing you agree to our Terms',
+                    style: AppTheme.captionStyle),
                 const SizedBox(height: 16),
                 CardForm(
                   onNameChanged: (value) {
                     setState(() {
-                      _cardholderName = value;  // Update the name when it changes
+                      _cardholderName =
+                          value; // Update the name when it changes
                     });
                   },
                   onSubmit: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PaymentConfirmationScreen(
-                          cardholderName: _cardholderName.isEmpty ? 'John Henry' : _cardholderName,  // Use the entered name or default
-                          cardNumber: '**** **** **** 3947',
-                          expiryMonth: '12',
-                          expiryYear: '2024',
-                          cvv: '123',
-                          fare: widget.fare,
-                          vehicleOption: widget.vehicleOption,
-                          bookingData: widget.bookingData,
-                        ),
-                      ),
-                    );
+                    bookSlot(context);
                   },
                   fare: widget.fare,
                 ),
@@ -338,7 +383,7 @@ class _CardFormState extends State<CardForm> {
                       value: _selectedMonth,
                       items: List.generate(
                         12,
-                            (index) => DropdownMenuItem(
+                        (index) => DropdownMenuItem(
                           value: (index + 1).toString().padLeft(2, '0'),
                           child: Text((index + 1).toString().padLeft(2, '0')),
                         ),
@@ -359,7 +404,7 @@ class _CardFormState extends State<CardForm> {
                       value: _selectedYear,
                       items: List.generate(
                         10,
-                            (index) => DropdownMenuItem(
+                        (index) => DropdownMenuItem(
                           value: (DateTime.now().year + index).toString(),
                           child: Text((DateTime.now().year + index).toString()),
                         ),
@@ -428,6 +473,7 @@ class _CardFormState extends State<CardForm> {
     );
   }
 }
+
 // Extra class for card preview (shown in the AddCardScreen)
 class CardPreview extends StatelessWidget {
   const CardPreview({Key? key}) : super(key: key);
@@ -564,9 +610,9 @@ class PaymentConfirmationScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<PaymentConfirmationScreen> createState() => _PaymentConfirmationScreenState();
+  State<PaymentConfirmationScreen> createState() =>
+      _PaymentConfirmationScreenState();
 }
-
 
 class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
   @override
@@ -583,8 +629,10 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Review your payment details', style: AppTheme.bodyStyle),
-                const Text('Please confirm all information is correct', style: AppTheme.captionStyle),
+                const Text('Review your payment details',
+                    style: AppTheme.bodyStyle),
+                const Text('Please confirm all information is correct',
+                    style: AppTheme.captionStyle),
                 const SizedBox(height: 24),
 
                 // Card preview in confirmation screen
@@ -614,7 +662,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
-                          const Icon(Icons.credit_card, color: Color(0xFF2F50FD)),
+                          const Icon(Icons.credit_card,
+                              color: Color(0xFF2F50FD)),
                         ],
                       ),
                       const Spacer(),
@@ -716,11 +765,12 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                    border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.3)),
                   ),
                   child: Column(
                     children: [
-                       Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Sub total', style: AppTheme.bodyStyle),
@@ -738,17 +788,19 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                       const SizedBox(height: 8),
                       Divider(color: AppTheme.primaryColor.withOpacity(0.2)),
                       const SizedBox(height: 8),
-                       Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total Amount',
+                          Text(
+                            'Total Amount',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.textColor,
                             ),
                           ),
-                          Text('Rs: ${widget.fare}',
+                          Text(
+                            'Rs: ${widget.fare}',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -769,7 +821,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                       onChanged: (value) {},
                       activeColor: AppTheme.primaryColor,
                     ),
-                    const Text('Set as default payment method', style: AppTheme.bodyStyle),
+                    const Text('Set as default payment method',
+                        style: AppTheme.bodyStyle),
                   ],
                 ),
 
@@ -784,7 +837,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                         builder: (BuildContext context) {
                           return AlertDialog(
                             backgroundColor: AppTheme.backgroundColor,
-                            title: const Text('Confirm Payment', style: AppTheme.headingStyle),
+                            title: const Text('Confirm Payment',
+                                style: AppTheme.headingStyle),
                             content: Text(
                               'Are you sure you want to process payment of Rs: ${widget.fare}?',
                               style: AppTheme.bodyStyle,
@@ -794,10 +848,11 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                                 onPressed: () => Navigator.pop(context),
                                 child: Text(
                                   'Cancel',
-                                  style: TextStyle(color: AppTheme.primaryColor.withOpacity(0.7)),
+                                  style: TextStyle(
+                                      color: AppTheme.primaryColor
+                                          .withOpacity(0.7)),
                                 ),
                               ),
-
                               ElevatedButton(
                                 onPressed: () {
                                   Navigator.pop(context); // Close dialog
@@ -830,7 +885,8 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
                     onPressed: () => Navigator.pop(context),
                     child: Text(
                       'Edit Payment Details',
-                      style: TextStyle(color: AppTheme.primaryColor.withOpacity(0.8)),
+                      style: TextStyle(
+                          color: AppTheme.primaryColor.withOpacity(0.8)),
                     ),
                   ),
                 ),
@@ -865,30 +921,62 @@ class _PaymentConfirmationScreenState extends State<PaymentConfirmationScreen> {
   }
 }
 
-
 // 7. CardAddedScreen - Screen shown after a card is added
 class CardAddedScreen extends StatefulWidget {
-  final String cardholderName;  // Add this parameter
+  final String cardholderName; // Add this parameter
   final VehicleOption vehicleOption;
   final BookingData bookingData;
 
-  const CardAddedScreen({
-    Key? key,
-    this.cardholderName = '',
-    required this.vehicleOption,
-    required this.bookingData
-  }) : super(key: key);
+  const CardAddedScreen(
+      {Key? key,
+      this.cardholderName = '',
+      required this.vehicleOption,
+      required this.bookingData})
+      : super(key: key);
 
   @override
   State<CardAddedScreen> createState() => _CardAddedScreenState();
 }
 
 class _CardAddedScreenState extends State<CardAddedScreen> {
-
   final ApiService apiService = ApiService();
 
-  Future<void> bookSlot(BuildContext context,String vehicleNumber,String bookingDate,String endtime,String slotId,String paidAmount, String bookingTime, String bookingSource,int durationOfAllocation)async {
-    try {
+  Future<void> bookSlot(
+      BuildContext context,
+      String vehicleNumber,
+      String bookingDate,
+      String endtime,
+      String slotId,
+      String paidAmount,
+      String bookingTime,
+      String bookingSource,
+      int durationOfAllocation) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InvoicePage(
+          // You can customize these values if needed
+          fromLocation: "Your Current Location",
+          toLocation: widget.bookingData.toLocation,
+          parkingSlot: widget.bookingData.parkingSlot,
+          parkingSlotId: widget.bookingData.parkingSlotId,
+          bookingTime: widget.bookingData.bookingTime,
+          vehicleBrand: widget.vehicleOption.brand,
+          vehicleModel: widget.vehicleOption.model,
+          vehicleType: widget.vehicleOption.type,
+          vehicleNum: widget.vehicleOption.vehicleNum,
+          parkingName: widget.bookingData.parkingName,
+          parkingAddress: widget.bookingData.parkingAddress,
+          parkingRating: 4.7,
+          invoiceNumber: "INV-20250302-7842",
+          bookingDate: widget.bookingData.bookingDate.toString(),
+          amount: widget.bookingData.parkingFare as double,
+          paymentMethod: "Credit Card",
+          transactionId: "TXN-78943213",
+        ),
+      ),
+    );
+    /*try {
       final response = await apiService.bookSlot(
           vehicleNumber,
           bookingDate,
@@ -953,14 +1041,15 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
               content: Text("An error occurred. Please try again.")),
         );
       }
-    }
+    }*/
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:  Text('Payment Methods'),
-        leading:  BackButton(),
+        title: Text('Payment Methods'),
+        leading: BackButton(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -969,9 +1058,10 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 Text('Enter your payment details', style: AppTheme.bodyStyle),
-                 Text('By continuing you agree to our Terms', style: AppTheme.captionStyle),
-                 SizedBox(height: 16),
+                Text('Enter your payment details', style: AppTheme.bodyStyle),
+                Text('By continuing you agree to our Terms',
+                    style: AppTheme.captionStyle),
+                SizedBox(height: 16),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1012,7 +1102,7 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                         color: Colors.green,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child:  Icon(
+                      child: Icon(
                         Icons.check,
                         color: Colors.white,
                         size: 16,
@@ -1021,30 +1111,32 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                   ],
                 ),
 
-                 SizedBox(height: 16),
-                 Text('Cardholder name', style: AppTheme.captionStyle),
-                 SizedBox(height: 8),
+                SizedBox(height: 16),
+                Text('Cardholder name', style: AppTheme.captionStyle),
+                SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding:  EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(widget.cardholderName, style: AppTheme.bodyStyle),  // Use the name passed to this screen
+                  child: Text(widget.cardholderName,
+                      style: AppTheme
+                          .bodyStyle), // Use the name passed to this screen
                 ),
 
-                 SizedBox(height: 16),
-                 Text('Card Number', style: AppTheme.captionStyle),
-                 SizedBox(height: 8),
+                SizedBox(height: 16),
+                Text('Card Number', style: AppTheme.captionStyle),
+                SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding:  EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child:  Text('**** **** **** 3947', style: AppTheme.bodyStyle),
+                  child: Text('**** **** **** 3947', style: AppTheme.bodyStyle),
                 ),
 
                 const SizedBox(height: 16),
@@ -1054,33 +1146,33 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                           Text('Exp Month', style: AppTheme.captionStyle),
-                           SizedBox(height: 8),
+                          Text('Exp Month', style: AppTheme.captionStyle),
+                          SizedBox(height: 8),
                           Container(
-                            padding:  EdgeInsets.all(16),
+                            padding: EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: AppTheme.cardColor,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child:  Text('12', style: AppTheme.bodyStyle),
+                            child: Text('12', style: AppTheme.bodyStyle),
                           ),
                         ],
                       ),
                     ),
-                     SizedBox(width: 16),
+                    SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                           Text('Exp Year', style: AppTheme.captionStyle),
-                           SizedBox(height: 8),
+                          Text('Exp Year', style: AppTheme.captionStyle),
+                          SizedBox(height: 8),
                           Container(
-                            padding:  EdgeInsets.all(16),
+                            padding: EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: AppTheme.cardColor,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child:  Text('2024', style: AppTheme.bodyStyle),
+                            child: Text('2024', style: AppTheme.bodyStyle),
                           ),
                         ],
                       ),
@@ -1088,20 +1180,20 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                   ],
                 ),
 
-                 SizedBox(height: 16),
-                 Text('CVV', style: AppTheme.captionStyle),
-                 SizedBox(height: 8),
+                SizedBox(height: 16),
+                Text('CVV', style: AppTheme.captionStyle),
+                SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding:  EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child:  Text('123', style: AppTheme.bodyStyle),
+                  child: Text('123', style: AppTheme.bodyStyle),
                 ),
 
-                 SizedBox(height: 16),
+                SizedBox(height: 16),
                 Row(
                   children: [
                     Switch(
@@ -1109,11 +1201,11 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                       onChanged: (value) {},
                       activeColor: AppTheme.primaryColor,
                     ),
-                     Text('Set as default', style: AppTheme.bodyStyle),
+                    Text('Set as default', style: AppTheme.bodyStyle),
                   ],
                 ),
 
-                 SizedBox(height: 30), // Add spacing
+                SizedBox(height: 30), // Add spacing
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -1130,14 +1222,17 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                       String startTimeStr = timeParts[0];
                       String endTimeStr = timeParts[1];
 
-                      DateTime startDateTime = DateFormat("hh:mm a").parse(startTimeStr);
+                      DateTime startDateTime =
+                          DateFormat("hh:mm a").parse(startTimeStr);
 
-                      DateTime endDateTime = DateFormat("hh:mm a").parse(endTimeStr);
+                      DateTime endDateTime =
+                          DateFormat("hh:mm a").parse(endTimeStr);
 
                       DateTime bookingDateTime = now;
 
                       if (endDateTime.hour < startDateTime.hour) {
-                        bookingDateTime = bookingDateTime.add(Duration(days: 1));
+                        bookingDateTime =
+                            bookingDateTime.add(Duration(days: 1));
                       }
 
                       DateTime finalEndTime = DateTime(
@@ -1149,11 +1244,22 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
                         0,
                       );
 
-                      endtime = DateFormat("yyyy-MM-dd HH:mm:ss").format(finalEndTime);
+                      endtime = DateFormat("yyyy-MM-dd HH:mm:ss")
+                          .format(finalEndTime);
 
-                      int durationOfAllocation = finalEndTime.difference(now).inMinutes;
+                      int durationOfAllocation =
+                          finalEndTime.difference(now).inMinutes;
 
-                      bookSlot(context, widget.vehicleOption.vehicleNum, bookingDate, endtime, widget.bookingData.parkingSlotId, widget.bookingData.parkingFare.toString(), widget.bookingData.bookingTime, "Credit Card",durationOfAllocation);
+                      bookSlot(
+                          context,
+                          widget.vehicleOption.vehicleNum,
+                          bookingDate,
+                          endtime,
+                          widget.bookingData.parkingSlotId,
+                          widget.bookingData.parkingFare.toString(),
+                          widget.bookingData.bookingTime,
+                          "Credit Card",
+                          durationOfAllocation);
                     },
                     child: const Text('Add now'),
                   ),
@@ -1167,8 +1273,6 @@ class _CardAddedScreenState extends State<CardAddedScreen> {
     );
   }
 }
-
-
 
 class AppTheme {
   // Private constructor to prevent instantiation

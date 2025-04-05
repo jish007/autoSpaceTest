@@ -2,193 +2,103 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
-
+import 'dart:typed_data';
 import '../../providers/ParkingProvider.dart';
 import '../bookings/bookings.dart';
 
-/*class TomTomRoutD extends StatefulWidget {
-  final String parkingId;
+class DetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> parkingSpot;
 
-  const TomTomRoutD({
+  const DetailsScreen({
     Key? key,
-    required this.parkingId,
+    required this.parkingSpot,
   }) : super(key: key);
 
   @override
   _TomTomRoutingPageState createState() => _TomTomRoutingPageState();
 }
 
-class _TomTomRoutingPageState extends State<TomTomRoutD> {
-  Map<String, dynamic>? parkingSpot;
-  bool isLoading = true;
+class _TomTomRoutingPageState extends State<DetailsScreen> {
+  bool isLoading = false;
   String? errorMessage;
-
-  Future<void> fetchParkingDetails() async {
-    try {
-      int parkingId =
-          int.parse(widget.parkingId); // Ensure this is coming from the widget
-
-      Map<String, dynamic>? fetchedSpot = await fetchParkingSpotById(parkingId);
-
-      if (fetchedSpot != null) {
-        setState(() {
-          parkingSpot = fetchedSpot;
-          isLoading = false;
-        });
-        print("Fetched Parking Spot: $parkingSpot");
-      } else {
-        setState(() {
-          errorMessage = "No parking spot found with ID: $parkingId";
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        errorMessage = "Error fetching parking spot: $e";
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<Map<String, dynamic>?> fetchParkingSpotById(int parkingId) async {
-    try {
-      final response = await http
-          .get(Uri.parse('http://localhost:8080/api/parking-spots/$parkingId'));
-
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(response.body);
-        return {
-          'id': data['id'],
-          'name': data['name'],
-          'description': data['description'],
-          'imageUrl': data['imageUrl'],
-          'latitude': data['latitude'],
-          'longitude': data['longitude'],
-          'ratePerHour': data['ratePerHour'],
-        };
-      } else {
-        throw Exception("Failed to load parking spot: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("Error fetching parking spot: $e");
-      return null;
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    print("Opened TomTomRoutingPage with Parking ID: ${widget.parkingId}");
-    fetchParkingDetails();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
-      
+        backgroundColor: Colors.black,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context); // Navigate back
+            Navigator.pop(context);
           },
         ),
+        title: Text("Parking Details", style: TextStyle(color: Colors.white)),
+        centerTitle: true,
       ),
-      body: Padding(
-           padding: const EdgeInsets.all(16.0), 
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Add the rounded image at the top center
-            Container(
-              height: 300, // Adjust the height as needed
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16.0), // Rounded corners
-                  child: Image.network(
-                    parkingSpot != null
-                        ? parkingSpot!['imageUrl']
-                        : 'https://via.placeholder.com/150',
-                    height: 250, // Adjust the height as needed
-                        width: double.infinity,// Adjust the height as needed
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Icon(Icons.image_not_supported, size: 120),
-                  ),
+            // Image with elevation
+            Material(
+              elevation: 5,
+              borderRadius: BorderRadius.circular(16.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16.0),
+                child: Image.memory(
+                  convertToImage(widget.parkingSpot['imageUrl']),
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported, size: 120),
                 ),
               ),
             ),
-            const SizedBox(height: 16), // Add some space below the image
-            Expanded(
-              child: Center(
+            const SizedBox(height: 24),
+
+            // Card with parking details
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (isLoading)
-                      CircularProgressIndicator()
-                    else if (errorMessage != null)
-                      Text(errorMessage!)
-                    else
-                      Column(
-                        children: [
-                          Text("Parking Spot Details:"),
-                          Text("Name: ${parkingSpot!['name']}"),
-                          Text("Description: ${parkingSpot!['description']}"),
-                          Text("Rate per Hour: ${parkingSpot!['ratePerHour']}"),
-                        ],
-                      ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          int parkingId = int.parse(
-                              widget.parkingId); // Convert String to int
-                          Map<String, dynamic>? fetchedSpot =
-                              await fetchParkingSpotById(parkingId);
-        
-                          if (fetchedSpot != null) {
-                            // Update the ParkingProvider with the fetched details
-                            Provider.of<ParkingProvider>(context, listen: false)
-                                .setParkingSpot(
-                              id: fetchedSpot['id'].toString(),
-                              name: fetchedSpot['name'],
-                              description: fetchedSpot['description'],
-                              imageUrl: fetchedSpot['imageUrl'],
-                              latitude: fetchedSpot['latitude'],
-                              longitude: fetchedSpot['longitude'],
-                              ratePerHour: fetchedSpot['ratePerHour'],
-                            );
-        
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BookScreen(),
-                              ),
-                            );
-                          } else {
-                            print("No parking spot found with ID: $parkingId");
-                          }
-                        } catch (e) {
-                          print("Error fetching parking spot: $e");
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-                        foregroundColor: Colors.white,
-                        padding:
-                            EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 5,
-                      ),
-                      child: Text(
-                        "Proceed to Booking",
-                        style:
-                            TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    Text("Parking Spot Details", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+
+                    DetailRow(icon: Icons.local_parking, label: "Name", value: widget.parkingSpot['name']),
+                    DetailRow(icon: Icons.description, label: "Description", value: widget.parkingSpot['description']),
+                    DetailRow(icon: Icons.attach_money, label: "Rate per Hour", value: widget.parkingSpot['ratePerHour'].toString()),
+                    DetailRow(icon: Icons.email, label: "Admin Email", value: widget.parkingSpot['adminMailId']),
                   ],
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // Action button
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: Icon(Icons.home),
+              label: Text("Back to Home", style: TextStyle(fontSize: 18)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 6,
               ),
             ),
           ],
@@ -196,4 +106,32 @@ class _TomTomRoutingPageState extends State<TomTomRoutD> {
       ),
     );
   }
-}*/
+  Uint8List convertToImage(imageBase64) {
+    return Base64Decoder().convert(imageBase64);
+  }
+
+  Widget DetailRow({required IconData icon, required String label, required String value}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.black54),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "$label: ",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              value,
+              style: TextStyle(color: Colors.grey[700]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

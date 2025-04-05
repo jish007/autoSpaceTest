@@ -78,6 +78,7 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
       fromLocation: 'Your current location',
       toLocation: parkingProvider.parkingName,
       parkingSlot: widget.slotNumber,
+      parkingSlotId: widget.slotId,
       bookingTime: '${widget.startTime} - ${widget.endTime}',
       parkingName: parkingProvider.parkingName,
       parkingAddress: 'Current address',
@@ -92,6 +93,8 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
       brand: 'Loading',
       model: '...',
       type: 'Please wait',
+      vehicleNum: '...',
+      vehicleType: '...',
       isDefault: true,
     );
 
@@ -125,6 +128,8 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
             brand: vehicle['vehicleBrand'] ?? '',
             model: vehicle['vehicleModel'] ?? '',
             type: vehicle['vehicleGene'] ?? '',
+            vehicleNum: vehicle['vehicleNumber'] ?? '',
+            vehicleType: vehicle['vehicleType'] ?? '',
             isDefault: i == 0, // First vehicle is default
           ),
         );
@@ -137,6 +142,8 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
             brand: 'No vehicles',
             model: 'found',
             type: 'Please add a vehicle',
+            vehicleNum: 'Not found',
+            vehicleType: 'Not found',
             isDefault: true,
           ),
         );
@@ -149,6 +156,7 @@ class _BookingPageState extends State<BookingPage> with SingleTickerProviderStat
         fromLocation: 'Your current location',
         toLocation: parkingProvider.parkingName,
         parkingSlot: widget.slotNumber,
+        parkingSlotId: widget.slotId,
         bookingTime: '${widget.startTime} - ${widget.endTime}',
         parkingName: parkingProvider.parkingName,
         parkingAddress: 'Current address',

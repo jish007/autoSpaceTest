@@ -40,6 +40,43 @@ class ApiService {
     return response;
   }
 
+  Future<http.Response> bookSlot(String vehicleNumber,String bookingDate,String endtime,String slotId,String paidAmount, String bookingTime, String bookingSource, int durationOfAllocation) async {
+    final url = Uri.parse('$baseUrl/user-app/slot-booking');
+    Map<String, dynamic> bookingData = {
+      "vehicleNumber": vehicleNumber,
+      "bookingDate": bookingDate,
+      "endtime": endtime,
+      "slotId": slotId,
+      "paidAmount": paidAmount,
+      "bookingTime": bookingTime,
+      "bookingSource": bookingSource,
+      "durationOfAllocation": durationOfAllocation,
+    };
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(bookingData),
+    );
+
+    return response;
+  }
+
+  Future<http.Response> addOnSlot(String vehicleNum, String duration, String fare) async {
+    final url = Uri.parse('$baseUrl/user-app/recharge');
+    Map<String, dynamic> bookingData = {
+      "duration": duration,
+      "vehicleNumber": vehicleNum,
+      "fare": fare,
+    };
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(bookingData),
+    );
+
+    return response;
+  }
+
 
   Future<http.Response> addVehicle(String vehicleNumber, String brand, String model, String color, int userId) async {
     final url = Uri.parse('$baseUrl/vehicles');
@@ -75,7 +112,7 @@ Future<List<Map<String, dynamic>>> getNearbyParkingSpots() async {
           'imageUrl': spot['image2'],
           'location': spot['propertyLocation'],
           'ratePerHour': spot['ratePerHour'],
-          'adminMailId': spot['adminMailId']
+          'adminMailId': spot['adminMailId'],
         }).toList();
       } catch (e) {
         throw Exception("Invalid JSON response: $e");

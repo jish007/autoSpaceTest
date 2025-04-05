@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/ParkingProvider.dart';
 import '../maps/datatime.dart';
@@ -271,6 +272,11 @@ class _TomTomRoutingPageState extends State<TomTomRoutingPage> {
     );
   }
 
+  Future<void> storeFare(String fare) async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ratePerHour', fare);
+  }
+
   // Build the bottom button
   Widget _buildBottomButton() {
     return Padding(
@@ -280,6 +286,7 @@ class _TomTomRoutingPageState extends State<TomTomRoutingPage> {
           try {
             if (widget.parkingSpot.isNotEmpty) {
               // Update the ParkingProvider with the fetched details
+              storeFare(widget.parkingSpot['ratePerHour'].toString());
               Provider.of<ParkingProvider>(context, listen: false).setParkingSpot(
                 name: widget.parkingSpot['name'].toString(),
                 description: widget.parkingSpot['description'].toString(),

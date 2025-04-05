@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:autospaxe/screens/maps/date_time_picker_for_add_on.dart';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -24,10 +25,11 @@ class _CountdownPageState extends State<CountdownPage> {
   double horizontalOffset = 0.0;
   int currentPage = 0;
   bool isAvailable = true;
-  List<Map<String, String>> carData = [];
+  List<Map<String, String?>> carData = []; // Changed to allow null values
   bool isLoading = true;
   String? errorMessage;
   List<VehicleBookingData> vehicleBookings = [];
+  bool hasLeftParking = false; // New flag to track if user has left parking
 
   @override
   void initState() {
@@ -76,17 +78,17 @@ class _CountdownPageState extends State<CountdownPage> {
             'licensePlate': booking.vehicleNumber,
             'svgUrl': 'https://res.cloudinary.com/dwdatqojd/image/upload/v1741951059/minicar_p5kkpn.png',
             'exitTime': booking.endtime,
-            'startTime': booking.bookingTime,
+            'startTime': booking.bookingDate,
             'brand': booking.vehicleBrand,
             'color': booking.vehicleClr,
             'type': booking.vehicleGene,
+            'vehicleType': booking.vehicleType
           };
         }).toList();
 
         svgDataList = List<String?>.filled(carData.length, null);
         isLoading = false;
-        _calculateRemainingTime();
-        _startCountdown();
+        _checkParkingStatus();
       } else {
         isLoading = false;
         errorMessage = 'No vehicles found';
@@ -94,30 +96,78 @@ class _CountdownPageState extends State<CountdownPage> {
     });
   }
 
-  void _calculateRemainingTime() {
+  void _checkParkingStatus() {
     if (carData.isEmpty) {
-      print('carData is empty, cannot calculate remaining time');
+      print('carData is empty, cannot check parking status');
       return;
     }
 
-    String exitTimeStr = carData[currentPage]['exitTime']!;
-    DateTime exitTime = DateTime.parse(exitTimeStr);
-    DateTime currentTime = DateTime.now();
+    // Check if exitTime and startTime are null or empty
+    String? exitTime = carData[currentPage]['exitTime'];
+    String? startTime = carData[currentPage]['startTime'];
 
-    int remainingTimeInSeconds = exitTime.difference(currentTime).inSeconds;
-    if (remainingTimeInSeconds < 0) {
-      remainingTimeInSeconds = 0; // Ensure remaining time is not negative
+    if (exitTime == null || startTime == null || exitTime.isEmpty || startTime.isEmpty) {
+      setState(() {
+        hasLeftParking = true;
+      });
+    } else {
+      try {
+        // Attempt to parse dates to verify they're valid
+        DateTime.parse(exitTime);
+        DateTime.parse(startTime);
+
+        setState(() {
+          hasLeftParking = false;
+          _calculateRemainingTime();
+          _startCountdown();
+        });
+      } catch (e) {
+        print('Invalid date format: $e');
+        setState(() {
+          hasLeftParking = true;
+        });
+      }
+    }
+  }
+
+  void _calculateRemainingTime() {
+    if (carData.isEmpty || hasLeftParking) {
+      print('Cannot calculate remaining time - empty data or left parking');
+      return;
     }
 
-    if (mounted) {
+    try {
+      String? exitTimeStr = carData[currentPage]['exitTime'];
+      if (exitTimeStr == null || exitTimeStr.isEmpty) {
+        setState(() {
+          hasLeftParking = true;
+        });
+        return;
+      }
+
+      DateTime exitTime = DateTime.parse(exitTimeStr);
+      DateTime currentTime = DateTime.now();
+
+      int remainingTimeInSeconds = exitTime.difference(currentTime).inSeconds;
+      if (remainingTimeInSeconds < 0) {
+        remainingTimeInSeconds = 0; // Ensure remaining time is not negative
+      }
+
+      if (mounted) {
+        setState(() {
+          _remainingTimeInSeconds = remainingTimeInSeconds;
+          if (_remainingTimeInSeconds > 0) {
+            _controller.reset();
+            _controller.start();
+          } else {
+            _controller.pause(); // Ensure the circular timer stops
+          }
+        });
+      }
+    } catch (e) {
+      print('Error calculating remaining time: $e');
       setState(() {
-        _remainingTimeInSeconds = remainingTimeInSeconds;
-        if (_remainingTimeInSeconds > 0) {
-          _controller.reset();
-          _controller.start();
-        } else {
-          _controller.pause(); // Ensure the circular timer stops
-        }
+        hasLeftParking = true;
       });
     }
   }
@@ -128,11 +178,12 @@ class _CountdownPageState extends State<CountdownPage> {
         currentPage = index;
         horizontalOffset = 0;
       });
-      _calculateRemainingTime(); // Recalculate remaining time when page changes
+      _checkParkingStatus(); // Check parking status when page changes
     }
   }
 
   void _startCountdown() {
+    _timer?.cancel(); // Cancel existing timer first
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return; // Check if the widget is still mounted
 
@@ -154,7 +205,7 @@ class _CountdownPageState extends State<CountdownPage> {
     super.dispose();
   }
 
-  // The rest of your build method remains the same
+  // The rest of your build method with modifications
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,12 +223,24 @@ class _CountdownPageState extends State<CountdownPage> {
             _buildSvgPageView(),
             SizedBox(height: 20),
             _buildButtonSection(),
-            _buildTextTimer(),
+            hasLeftParking ? _buildLeftParkingText() : _buildTextTimer(),
             SizedBox(height: 20),
-            _buildCircularCountDownTimer(),
+            hasLeftParking ? Container() : _buildCircularCountDownTimer(),
             SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  // New widget for displaying "You left your parking area" text
+  Widget _buildLeftParkingText() {
+    return Text(
+      'You left your parking area',
+      style: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+        color: Colors.red,
       ),
     );
   }
@@ -197,7 +260,7 @@ class _CountdownPageState extends State<CountdownPage> {
       child: Padding(
         padding: const EdgeInsets.only(top: 26, left: 32),
         child: Text(
-          '${carData[currentPage]['brand']} ${carData[currentPage]['carName']}',
+          '${carData[currentPage]['brand'] ?? ''} ${carData[currentPage]['carName'] ?? ''}',
           style: TextStyle(
             color: const Color.fromARGB(255, 93, 200, 40),
             fontWeight: FontWeight.bold,
@@ -241,12 +304,17 @@ class _CountdownPageState extends State<CountdownPage> {
                 child: Stack(
                   children: [
                     Center(
-                      child: Image.network(
+                      child: carData[index]['svgUrl'] != null
+                          ? Image.network(
                         carData[index]['svgUrl']!,
                         width: 400,
                         height: 300,
                         fit: BoxFit.contain,
-                      ),
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(Icons.error, color: Colors.red, size: 48);
+                        },
+                      )
+                          : Icon(Icons.directions_car, color: Colors.white, size: 100),
                     ),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 120, left: 25),
@@ -262,12 +330,12 @@ class _CountdownPageState extends State<CountdownPage> {
                             children: [
                               Icon(
                                 Icons.local_parking,
-                                color: isAvailable ? Colors.green : Colors.red,
+                                color: hasLeftParking ? Colors.red : Colors.green,
                                 size: 24,
                               ),
                               SizedBox(width: 5),
                               Text(
-                                carData[currentPage]['licensePlate']!,
+                                carData[currentPage]['licensePlate'] ?? '',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -294,14 +362,14 @@ class _CountdownPageState extends State<CountdownPage> {
       child: Column(
         children: [
           ElevatedButton(
-            onPressed: () {
-              /*Navigator.push(
+            onPressed: hasLeftParking ? null : () {
+              Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) =>DateTimePickerPagetwo()),
-              );*/
+                MaterialPageRoute(builder: (context) =>DateTimePickerForAddOn(slotType: carData[currentPage]['vehicleType'].toString(),vehicleNum: carData[currentPage]['licensePlate'].toString(),)),
+              );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 13, 54, 189),
+              backgroundColor: hasLeftParking ? Colors.grey : const Color.fromARGB(255, 13, 54, 189),
               foregroundColor: Colors.white,
               minimumSize: const Size(360, 75),
               shape: RoundedRectangleBorder(
@@ -314,7 +382,7 @@ class _CountdownPageState extends State<CountdownPage> {
               elevation: 0,
             ),
             child: Text(
-              'Add on',
+              hasLeftParking ? 'Not Available' : 'Add on',
               style: GoogleFonts.openSans(
                 fontSize: 22,
                 color: const Color.fromARGB(255, 242, 244, 245),
@@ -324,7 +392,7 @@ class _CountdownPageState extends State<CountdownPage> {
           ),
           SizedBox(height: 10),
           Text(
-            'Remaining Time',
+            hasLeftParking ? 'Status' : 'Remaining Time',
             style: GoogleFonts.openSans(
               fontSize: 15,
               color: const Color.fromARGB(255, 93, 200, 40),
@@ -335,7 +403,6 @@ class _CountdownPageState extends State<CountdownPage> {
       ),
     );
   }
-
 
   Widget _buildTextTimer() {
     if (_remainingTimeInSeconds <= 0) {
@@ -358,11 +425,10 @@ class _CountdownPageState extends State<CountdownPage> {
       style: TextStyle(
         fontSize: 48,
         fontWeight: FontWeight.bold,
-        color: Colors.white, // Changed to white for better visibility on dark background
+        color: Colors.white,
       ),
     );
   }
-
 
   Widget _buildCircularCountDownTimer() {
     if (_remainingTimeInSeconds <= 0) {
@@ -381,11 +447,11 @@ class _CountdownPageState extends State<CountdownPage> {
       children: [
         // Circular background
         Container(
-          width: 140, // Width of the circular background
-          height: 140, // Height of the circular background
+          width: 140,
+          height: 140,
           decoration: BoxDecoration(
-            color: Colors.white, // White background color
-            shape: BoxShape.circle, // Circular shape
+            color: Colors.white,
+            shape: BoxShape.circle,
           ),
         ),
         // Circular countdown timer
@@ -414,9 +480,9 @@ class _CountdownPageState extends State<CountdownPage> {
         ),
         // Lock icon
         Icon(
-          Icons.lock_outline, // Lock icon
-          size: 50, // Size of the icon
-          color: const Color.fromARGB(255, 93, 200, 40), // Color of the icon
+          Icons.lock_outline,
+          size: 50,
+          color: const Color.fromARGB(255, 93, 200, 40),
         ),
       ],
     );

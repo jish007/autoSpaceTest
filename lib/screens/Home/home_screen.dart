@@ -15,7 +15,7 @@ import 'dart:math';
 
 final double _fixedZoomLevel = 16.5;
 final double minzoom = 20;
-final LatLng _currentLocation = LatLng(9.31741, 76.61764);
+final LatLng _defaultLocation = LatLng(9.31741, 76.61764);
 
 class HomeScreen extends StatefulWidget {
   final String? userMail;
@@ -47,7 +47,7 @@ double _calculateDistance(LatLng start, LatLng end) {
   return distance; // Return distance in kilometers
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final ApiService apiService = ApiService();
 
   late Future<List<Map<String, dynamic>>> _futureParkingSpots;
@@ -75,94 +75,166 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Polyline> _polylines = []; // For storing polylines between locations
   bool _locationPermissionGranted = false;
+  bool _locationServiceSubscribed = false;
+  bool _isMapReady = false;
   late final String parkingId;
 
-  late List<Map<String, dynamic>> _parkingLocations = []; /*= [
-    {
-      "name": "Pranav Parking",
-      "location": LatLng(9.3906, 76.5583),
-      "isVisible": true,
-    },
-    {
-      "name": "Gedi Parking",
-      "location": LatLng(9.4000, 76.5650),
-      "isVisible": true,
-    },
-    {
-      "name": "Airport Parking Zone",
-      "location": LatLng(9.6001, 76.3805),
-      "isVisible": true,
-    },
-    {
-      "name": "Auto Spaxe Chengannur",
-      "location": LatLng(9.3155, 76.6158),
-      "isVisible": true,
-    },
-  ];*/
+  late List<Map<String, dynamic>> _parkingLocations = [];
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
-    _checkPermissions();
-    //_futureParkingSpots = apiService.getNearbyParkingSpots();
-    _fetchParkingSpots();
-    Provider.of<UserProvider>(context, listen: false).setUserProvider(
-      userEmail: widget.userMail.toString()
-    );
 
+    // Delay the Provider update to avoid the build-time setState issue
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<UserProvider>(context, listen: false).setUserProvider(
+            userEmail: widget.userMail.toString()
+        );
+      }
+    });
+
+    WidgetsBinding.instance.addObserver(this);
+    _checkPermissions();
+    _fetchParkingSpots();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // This is a good place to re-check location when coming back to screen
+    if (_locationPermissionGranted) {
+      _refreshCurrentLocation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    _searchController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App came back to foreground, refresh location
+      if (_locationPermissionGranted) {
+        _refreshCurrentLocation();
+        if (_isMapReady && _currentLocation != null) {
+          _centerMapOnCurrentLocation();
+        }
+      }
+    }
+  }
+
+  // New method to refresh current location on demand
+  Future<void> _refreshCurrentLocation() async {
+    try {
+      LocationData locationData = await _location.getLocation();
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(locationData.latitude!, locationData.longitude!);
+        });
+        // Center map if it's ready
+        if (_isMapReady) {
+          _centerMapOnCurrentLocation();
+        }
+      }
+    } catch (e) {
+      print("Error refreshing location: $e");
+    }
+
+    // Make sure we're subscribed to location updates
+    if (!_locationServiceSubscribed) {
+      _startLocationUpdates();
+    }
+  }
+
+  // New method to center the map on current location
+  void _centerMapOnCurrentLocation() {
+    if (_currentLocation != null && _mapController.ready) {
+      _mapController.move(_currentLocation!, _fixedZoomLevel);
+    }
   }
 
   void _fetchParkingSpots() {
-    _futureParkingSpots = apiService.getNearbyParkingSpots(); // Store the Future
+    _futureParkingSpots = apiService.getNearbyParkingSpots();
 
     _futureParkingSpots.then((spots) {
-      setState(() {
-        _parkingLocations = spots.map((spot) {
-          List<String> latLngStr = spot['location'].split(',');
-          double latitude = double.parse(latLngStr[0].trim());
-          double longitude = double.parse(latLngStr[1].trim());
+      if (mounted) {
+        setState(() {
+          _parkingLocations = spots.map((spot) {
+            List<String> latLngStr = spot['location'].split(',');
+            double latitude = double.parse(latLngStr[0].trim());
+            double longitude = double.parse(latLngStr[1].trim());
 
-          return {
-            'name': spot['name'],
-            'location': LatLng(latitude, longitude),
-            'isVisible': true,
-          };
-        }).toList();
-      });
-
-      print("Parking locations updated: $_parkingLocations"); // Print after assignment
+            return {
+              'name': spot['name'],
+              'location': LatLng(latitude, longitude),
+              'isVisible': true,
+            };
+          }).toList();
+        });
+      }
     }).catchError((error) {
       print("Error loading parking spots: $error");
     });
   }
 
-
   void _checkPermissions() async {
+    bool serviceEnabled = await _location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await _location.requestService();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location service is disabled.")),
+          );
+        }
+        return;
+      }
+    }
+
     PermissionStatus permissionStatus = await _location.hasPermission();
-    if (permissionStatus == PermissionStatus.granted) {
-      _locationPermissionGranted = true;
-      _startLocationUpdates();
+    if (permissionStatus == PermissionStatus.granted ||
+        permissionStatus == PermissionStatus.grantedLimited) {
+      setState(() {
+        _locationPermissionGranted = true;
+      });
+      _refreshCurrentLocation();
     } else {
       permissionStatus = await _location.requestPermission();
-      if (permissionStatus == PermissionStatus.granted) {
-        _locationPermissionGranted = true;
-        _startLocationUpdates();
+      if (permissionStatus == PermissionStatus.granted ||
+          permissionStatus == PermissionStatus.grantedLimited) {
+        setState(() {
+          _locationPermissionGranted = true;
+        });
+        _refreshCurrentLocation();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Location permission denied.")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission denied.")),
+          );
+        }
       }
     }
   }
 
   void _startLocationUpdates() {
+    if (_locationServiceSubscribed) return;
+
+    _locationServiceSubscribed = true;
+
+    // Subscribe to location updates
     _location.onLocationChanged.listen((LocationData locationData) {
-      setState(() {
-        _currentLocation =
-            LatLng(locationData.latitude!, locationData.longitude!);
-        _mapController.move(_currentLocation!, _fixedZoomLevel);
-      });
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(locationData.latitude!, locationData.longitude!);
+        });
+      }
     });
   }
 
@@ -186,16 +258,23 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-      if (result != null && result is LatLng) {
-        _selectedLocation = result;
-        _searchController.text =
-            "Destination: ${result.latitude}, ${result.longitude}";
+      // When returning from the search page, refresh location
+      _refreshCurrentLocation();
+
+      if (result != null && result is LatLng && mounted) {
+        setState(() {
+          _selectedLocation = result;
+          _searchController.text =
+          "Destination: ${result.latitude}, ${result.longitude}";
+        });
         _addRoute(_currentLocation!, _selectedLocation!);
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Unable to fetch your current location.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Unable to fetch your current location.")),
+        );
+      }
     }
   }
 
@@ -223,66 +302,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _animateCarAlongRoute() async {
-    if (_currentLocation == null || _selectedLocation == null) return;
-
-    // Get the route points (polyline coordinates)
-    List<LatLng> route = _polylines[0].points;
-    if (route.isEmpty) return;
-
-    // Iterate over the points and animate the car's position along the route
-    for (int i = 1; i < route.length; i++) {
-      LatLng start = route[i - 1]; // Start point
-      LatLng end = route[i]; // End point
-      double distance =
-          _calculateDistance(start, end); // Calculate distance between points
-      double stepSize = 0.05; // Adjust for the speed of the car animation
-      double steps = distance / stepSize; // Number of steps for the animation
-
-      // Loop through the steps to simulate car movement
-      for (double j = 0; j <= steps; j++) {
-        double progress =
-            j / steps; // Progress of the car moving from start to end
-        LatLng newLocation = LatLng(
-          start.latitude + (end.latitude - start.latitude) * progress,
-          start.longitude + (end.longitude - start.longitude) * progress,
-        );
-
-        // Update the car's location
-        setState(() {
-          _currentLocation = newLocation;
-        });
-
-        // Wait before updating the position to simulate movement
-      }
-    }
-  }
-
-  Future<Map<String, dynamic>?> fetchParkingSpotById(int parkingId) async {
-    try {
-      final response = await http
-          .get(Uri.parse('http://localhost:8080/api/parking-spots/$parkingId'));
-
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = jsonDecode(response.body);
-        return {
-          'id': data['id'],
-          'name': data['name'],
-          'description': data['description'],
-          'imageUrl': data['imageUrl'],
-          'latitude': data['latitude'],
-          'longitude': data['longitude'],
-          'ratePerHour': data['ratePerHour'],
-        };
-      } else {
-        throw Exception("Failed to load parking spot: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("Error fetching parking spot: $e");
-      return null;
-    }
-  }
-
   void _updateMarkerVisibility(double zoomLevel) {
     setState(() {
       if (zoomLevel > 13.5) {
@@ -303,17 +322,21 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Add sample content to debug
             buildCardWithImageTextAndButton(),
-            // Buttons at the top
             _buildMapView(),
-            // Map View section
             _buildSearchBar(),
-            // Search Bar
             _buildNearbySpotsContainer(),
             _buildParkingSpotsList(context)
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _refreshCurrentLocation();
+          _centerMapOnCurrentLocation();
+        },
+        child: Icon(Icons.my_location),
+        backgroundColor: Colors.blue,
       ),
     );
   }
@@ -322,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       height: 500, // Set a fixed height for the map view
       child: Center(
-        child: _buildTomTomMap(), // Always show the TomTom map
+        child: _buildTomTomMap(),
       ),
     );
   }
@@ -338,20 +361,16 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: GestureDetector(
                   onTap: _navigateToSearchPage,
-                  // Navigates to the search page on tap
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
                       color: const Color.fromARGB(255, 0, 0, 0),
-                      // Black background for the search bar
-                      borderRadius:
-                          BorderRadius.circular(16), // Rounded corners
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
                         const Icon(Icons.search, color: Colors.white),
-                        // White search icon
                         const SizedBox(width: 10),
                         Text(
                           _searchController.text.isEmpty
@@ -359,10 +378,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               : _searchController.text,
                           style: TextStyle(
                             color: _searchController.text.isEmpty
-                                ? Colors.white.withOpacity(
-                                    0.5) // Light grey color for hint
+                                ? Colors.white.withOpacity(0.5)
                                 : Colors.white,
-                            // White text when text is entered
                             fontSize: 16,
                           ),
                         ),
@@ -382,27 +399,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget buildCardWithImageTextAndButton() {
     return Container(
-      margin: const EdgeInsets.all(16.0), // Margin around the container
+      margin: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: const Color.fromARGB(193, 6, 73, 218),
-        borderRadius: BorderRadius.circular(16), // Rounded corners
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color.fromARGB(38, 0, 0, 0), width: 2),
         boxShadow: [
           BoxShadow(
             color: const Color.fromARGB(50, 0, 0, 0).withOpacity(0.1),
             blurRadius: 8,
-            offset: const Offset(2, 2), // Shadow position
+            offset: const Offset(2, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Image container
           ClipRRect(
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
-          // Random text or content
           Container(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -414,27 +429,21 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.justify,
             ),
           ),
-          // Button container
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Align(
-              alignment: Alignment.centerLeft, // Aligns the button to the left
+              alignment: Alignment.centerLeft,
               child: ElevatedButton(
                 onPressed: () {
                   // Handle button press here
                 },
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.blue, // Button color
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0), // Adjust padding for smaller button
+                  foregroundColor: Colors.blue,
+                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 ),
                 child: Text(
                   'Click Here',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight
-                          .bold), // Smaller text size for a smaller button
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -464,19 +473,26 @@ class _HomeScreenState extends State<HomeScreen> {
         child: FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: _currentLocation ?? LatLng(0.0, 0.0),
+            initialCenter: _currentLocation ?? _defaultLocation,
             initialZoom: _fixedZoomLevel,
-            // Set the initial zoom level to your fixed level
             minZoom: 13,
-            // Set the minimum zoom level
             maxZoom: 20,
-            // Optional: Set the maximum zoom level
-
-            onPositionChanged: (_, isGesturing) {
+            onMapReady: () {
+              setState(() {
+                _isMapReady = true;
+              });
+              // Move to current location when map is ready if available
+              if (_currentLocation != null) {
+                _mapController.move(_currentLocation!, _fixedZoomLevel);
+              } else {
+                // If location not available yet, try to get it now
+                _refreshCurrentLocation();
+              }
+            },
+            onPositionChanged: (position, hasGesture) {
               // Adjust the visibility based on zoom level
               if (_mapController.zoom <= 13) {
-                _updateMarkerVisibility(
-                    13); // Limit marker visibility if zoomed out
+                _updateMarkerVisibility(13);
               } else {
                 _updateMarkerVisibility(_mapController.zoom);
               }
@@ -484,10 +500,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           children: [
             TileLayer(
-              urlTemplate:
-                  'https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=8CKwch3uCDAuLbcrffLiAx8IdhU9bGKS',
+              urlTemplate: 'https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=8CKwch3uCDAuLbcrffLiAx8IdhU9bGKS',
               userAgentPackageName: 'com.example.app',
             ),
+            // Add a marker for current location
+            if (_currentLocation != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _currentLocation!,
+                    width: 40,
+                    height: 40,
+                    child: Icon(
+                      Icons.my_location,
+                      color: Colors.blue,
+                      size: 30,
+                    ),
+                  ),
+                ],
+              ),
+            // Add markers for parking locations
             MarkerLayer(
               markers: _parkingLocations.map((parking) {
                 return Marker(
@@ -496,21 +528,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: parking["isVisible"] == true ? 80 : 0,
                   child: parking["isVisible"] == true
                       ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.location_on,
-                                color: Colors.red, size: 40),
-                            const SizedBox(height: 5),
-                            Text(
-                              parking["name"],
-                              style: const TextStyle(
-                                color: Color.fromARGB(255, 230, 12, 12),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        )
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.location_on, color: Colors.red, size: 40),
+                      const SizedBox(height: 5),
+                      Text(
+                        parking["name"],
+                        style: const TextStyle(
+                          color: Color.fromARGB(255, 230, 12, 12),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  )
                       : const SizedBox.shrink(),
                 );
               }).toList(),
@@ -540,15 +571,12 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
             child: Column(
               children: [
-                Icon(icon,
-                    color:
-                        _selectedIndex == index ? Colors.white : Colors.black),
+                Icon(icon, color: _selectedIndex == index ? Colors.white : Colors.black),
                 const SizedBox(height: 2),
                 Text(
                   title,
                   style: TextStyle(
-                    color:
-                        _selectedIndex == index ? Colors.white : Colors.black,
+                    color: _selectedIndex == index ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -601,9 +629,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _navigateToRoutePage(
-      BuildContext context, Map<String,dynamic> parkingSpot) {
-    Navigator.push(
+  void _navigateToRoutePage(BuildContext context, Map<String, dynamic> parkingSpot) async {
+    if (_currentLocation == null) {
+      await _refreshCurrentLocation();
+
+      if (_currentLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Current location not available. Please wait.")),
+        );
+        return;
+      }
+    }
+
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => TomTomRoutingPage(
@@ -612,30 +650,21 @@ class _HomeScreenState extends State<HomeScreen> {
           parkingSpot: parkingSpot,
           onRouteUpdated: (route) {
             // Handle route update here if needed
+            if (mounted) {
+              _updateRoute(route);
+            }
           },
         ),
       ),
     );
+
+    // When returning from route page, refresh location and center map
+    _refreshCurrentLocation();
   }
-
-  /*void _navigateToD(
-      BuildContext context, String parkingId, String parkingName) {
-    print("Navigating to Parking ID: $parkingId, Name: $parkingName");
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TomTomRoutD(
-          parkingId: parkingId, // Pass parkingId to the next screen
-        ),
-      ),
-    );
-  }*/
-
-
 
   Widget _buildParkingSpotsList(BuildContext context) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _futureParkingSpots, // Fetch data
+      future: _futureParkingSpots,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -646,10 +675,8 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final parkingSpots = snapshot.data!;
-        final screenWidth =
-            MediaQuery.of(context).size.width; // Get screen width
-        final screenHeight =
-            MediaQuery.of(context).size.height; // Get screen height
+        final screenWidth = MediaQuery.of(context).size.width;
+        final screenHeight = MediaQuery.of(context).size.height;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -667,17 +694,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          const Color.fromARGB(105, 0, 0, 0).withOpacity(0.1),
+                      color: const Color.fromARGB(105, 0, 0, 0).withOpacity(0.1),
                       blurRadius: 5,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 height: screenWidth < 600 ? 250 : 200,
-                // Increase height for smaller screens
                 width: screenWidth * 0.9,
-                // Make it 90% of screen width
 
                 child: Row(
                   children: [
@@ -687,7 +711,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Image.memory(
                         convertToImage(parkingSpot['imageUrl']),
                         width: screenWidth < 600 ? 100 : 150,
-                        // Adjust image size for small screens
                         height: screenWidth < 600 ? 190 : 160,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
@@ -704,7 +727,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             parkingSpot['name']!,
                             style: TextStyle(
                               fontSize: screenWidth < 600 ? 14 : 16,
-                              // Adjust font size
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -714,11 +736,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             parkingSpot['description']!,
                             style: TextStyle(
                               fontSize: screenWidth < 600 ? 12 : 14,
-                              // Adjust font size
                               color: Color.fromARGB(255, 246, 245, 245),
                             ),
                             maxLines: screenWidth < 600 ? 8 : 10,
-                            // Limit lines for smaller screens
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 10),
@@ -736,7 +756,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   foregroundColor: Colors.blue,
                                   padding: EdgeInsets.symmetric(
                                     horizontal: screenWidth < 600 ? 20 : 30,
-                                    // Adjust padding
                                     vertical: 10,
                                   ),
                                 ),
@@ -745,18 +764,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(width: 10),
                               ElevatedButton(
                                 onPressed: () {
-                                  /*_navigateToD(
-                                    context,
-                                    parkingSpot['id'].toString(),
-                                    // Ensure parking ID is a String
-                                    parkingSpot['name']!,
-                                  );*/
+                                  // Navigate to details page
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => DetailsScreen(parkingSpot: parkingSpot)
+                                      )
+                                  ).then((_) {
+                                    // Refresh location when returning from details page
+                                    _refreshCurrentLocation();
+                                  });
                                 },
                                 style: ElevatedButton.styleFrom(
                                   foregroundColor: Colors.green,
                                   padding: EdgeInsets.symmetric(
                                     horizontal: screenWidth < 600 ? 20 : 30,
-                                    // Adjust padding
                                     vertical: 10,
                                   ),
                                 ),
@@ -782,6 +804,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-extension on MapController {
-  get zoom => 20;
+// Extension with proper implementation to check if map controller is ready
+extension MapControllerExtension on MapController {
+  bool get ready => camera != null;
+
+  double get zoom {
+    if (camera == null) return 16.5; // Default zoom level
+    return camera!.zoom;
+  }
 }
