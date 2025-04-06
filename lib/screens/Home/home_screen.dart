@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:autospaxe/screens/login/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 import 'package:provider/provider.dart';
@@ -316,12 +318,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  void logout() async{
+    final response = await apiService.logOutUser(widget.userMail.toString());
+    if(response.statusCode == 200){
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
           children: [
+            IconButton(
+              icon: Icon(Icons.logout),
+              onPressed: () {
+                logout();
+              },
+              color: Colors.black54,
+            ),
             buildCardWithImageTextAndButton(),
             _buildMapView(),
             _buildSearchBar(),
@@ -399,55 +418,106 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget buildCardWithImageTextAndButton() {
     return Container(
-      margin: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.all(20.0), // Margin around the container
       decoration: BoxDecoration(
-        color: const Color.fromARGB(193, 6, 73, 218),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color.fromARGB(217, 55, 53, 53),
+        borderRadius: BorderRadius.circular(16), // Rounded corners
         border: Border.all(color: const Color.fromARGB(38, 0, 0, 0), width: 2),
         boxShadow: [
           BoxShadow(
             color: const Color.fromARGB(50, 0, 0, 0).withOpacity(0.1),
             blurRadius: 8,
-            offset: const Offset(2, 2),
+            offset: const Offset(2, 2), // Shadow position
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
+          // Image container
+
+          // Row with icons and text
           Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'The button has some padding to make it look like a card button. You can customize the button style and action as per!',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.justify,
+
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                // Person icon on the left with background color
+                Container(
+                  padding: const EdgeInsets.all(8.0), // Padding around the icon
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 223, 224, 225), // Background color of the icon
+                    shape: BoxShape.circle, // Circular shape
+                  ),
+                  child: Icon(
+                    Icons.location_on,
+                    color: const Color.fromARGB(255, 140, 198, 7),
+                    size: 30,
+                  ),
+                ),
+                SizedBox(width: 16), // Space between icons
+                // Location icon and text centered below the person icon
+                Column(
+                  children: [
+                    // Location icon
+
+                    SizedBox(height: 4), // Space between icon and text
+                    // Location text
+                    Text(
+                      'Chengannur',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                Spacer(), // Spacer to push the notification icon to the right
+                // Notification icon on the right with background color
+                Container(
+                  padding: const EdgeInsets.all(8.0), // Padding around the icon
+                  decoration: BoxDecoration(
+                    color: Colors.green, // Background color of the icon
+                    shape: BoxShape.circle, // Circular shape
+                  ),
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+
+              ],
             ),
           ),
+          // Random text or content
+
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Handle button press here
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.blue,
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: EdgeInsets.only(bottom: 30,left: 20),
+
+            child: Row(
+
+
+              children: [
+                Column(
+
+                  children: [
+                    Text(
+                        'Welcome ${widget.userMail}',
+                        style: GoogleFonts.openSans(
+                          fontSize: 22,
+                          color: const Color.fromARGB(255, 242, 244, 245),
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.left),
+                  ],
                 ),
-                child: Text(
-                  'Click Here',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
+              ],
             ),
           )
+          // Button container
+
         ],
       ),
     );

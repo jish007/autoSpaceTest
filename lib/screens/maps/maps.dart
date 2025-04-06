@@ -21,7 +21,7 @@ class SvgUpdater extends StatefulWidget {
 }
 
 class _SvgUpdaterState extends State<SvgUpdater> {
-  static const String baseUrl = 'http://localhost:9000';
+  static const String baseUrl = 'https://spare-felita-pn87-9ad509ad.koyeb.app';
 
   int selectedImageIndex = -1;
   final int numRows = 26;

@@ -104,7 +104,7 @@ class _VehicleInfoPopupState extends State<VehicleInfoPopup> with SingleTickerPr
     if (_formKey.currentState!.validate()) {
       // Create the vehicle info map to return
       Map<String, String> vehicleInfo = {
-        'vehicleNumber': _vehicleNumberController.text.toString(),
+        'vehicleNumber': _vehicleNumberController.text.toString().toLowerCase().trim(),
         'vehicleModel': _modelController.text.toString(),
         'vehicleBrand': _brandController.text.toString(),
         'vehicleClr': _colorController.text.toString(),

@@ -1,6 +1,7 @@
 import 'package:autospaxe/screens/status/status.dart';
 import 'package:flutter/material.dart';
 import 'Home/home_screen.dart'; // Import HomeScreen
+import 'Home/test_screen.dart';
 import 'profile/profile.dart';
 import 'bookmarks/bookmark.dart';
 
@@ -23,8 +24,8 @@ class _BottomnavState extends State<Bottomnav> {
     _screens = [
       HomeScreen(userMail: widget.userMail),
       CountdownPage(),
-      //Bookmarker(),
-      //Profile(),
+      TestScreen(),
+      TestScreen(),
     ];
   }
 
@@ -36,6 +37,14 @@ class _BottomnavState extends State<Bottomnav> {
 
   @override
   Widget build(BuildContext context) {
+
+    final List<Color> _navBarColors = [
+      const Color.fromARGB(255, 13, 54, 189),      // HomeScreen
+      const Color.fromARGB(255, 13, 54, 189),  // SvgDisplayPage
+      const Color.fromARGB(255, 13, 54, 189),    // Bookmarker
+      const Color.fromARGB(255, 13, 54, 189), // Profile
+    ];
+
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: SafeArea(
@@ -44,7 +53,7 @@ class _BottomnavState extends State<Bottomnav> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           margin: const EdgeInsets.only(bottom: 16, left: 9, right: 9),
           decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 39, 38, 38),
+            color: _navBarColors[_currentIndex],
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -64,18 +73,18 @@ class _BottomnavState extends State<Bottomnav> {
                 onTap: () => _onItemTapped(0),
               ),
               _buildNavItem(
-                icon: Icons.map_outlined,
+                icon: Icons.timer_outlined,
                 isSelected: _currentIndex == 1,
                 onTap: () => _onItemTapped(1),
               ),
               _buildNavItem(
-                icon: Icons.bookmark_outline,
-                isSelected: _currentIndex == 2,
+                icon: Icons.qr_code_2_outlined,
+                isSelected: _currentIndex == 1,
                 onTap: () => _onItemTapped(2),
               ),
               _buildNavItem(
                 icon: Icons.person_2_outlined,
-                isSelected: _currentIndex == 3,
+                isSelected: _currentIndex == 1,
                 onTap: () => _onItemTapped(3),
               ),
             ],

@@ -47,7 +47,6 @@ dependencies:
   duration:
   intl:
   location: ^5.0.3
-  webview_flutter: ^4.0.1
   geocoding:
   google_maps_flutter: ^2.2.0
   permission_handler: ^10.2.0
